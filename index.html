@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UTM Passthrough Demo — Framer → Shopify → Seal Subscriptions</title>
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; background: #f7f7f8; }
+    header { background: #111; color: #fff; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { margin: 0; font-size: 1.25rem; }
+    .container { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    .panel { background: #fff; border-radius: 12px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .panel h2, .panel h3 { margin-top: 0; }
+    .utm-row { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+    .utm-row:last-child { border-bottom: none; }
+    .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+    .badge.ok { background: #dcfce7; color: #166534; }
+    .badge.missing { background: #fee2e2; color: #991b1b; }
+    .cta { display: inline-block; background: #111; color: #fff; padding: 0.875rem 1.5rem; border-radius: 999px; text-decoration: none; font-weight: 600; border: none; cursor: pointer; }
+    .cta.shopify { background: #2c5de5; }
+    .cta.seal { background: #7c3aed; }
+    .hidden { display: none; }
+    .domain { font-size: 0.875rem; color: #888; }
+    .url-box { background: #f3f4f6; padding: 0.75rem; border-radius: 6px; font-size: 0.875rem; word-break: break-all; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .flow { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .flow-step { background: #e5e7eb; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+    .flow-step.active { background: #111; color: #fff; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>UTM Passthrough Demo</h1>
+    <span class="domain">Live proof of concept</span>
+  </header>
+
+  <div class="container">
+    <div class="flow">
+      <span class="flow-step active" id="step-framer">1. Framer landing</span>
+      <span>→</span>
+      <span class="flow-step" id="step-shopify">2. Shopify checkout</span>
+      <span>→</span>
+      <span class="flow-step" id="step-seal">3. Seal Subscriptions</span>
+    </div>
+
+    <!-- Framer landing page -->
+    <section id="framer" class="panel">
+      <h2>celltheory.com <span class="domain">— Framer frontend</span></h2>
+      <p>This simulates the Framer landing page. UTM parameters are captured from the URL, stored in <strong>localStorage</strong> and a <strong>root-domain cookie</strong>, and pushed to the GTM <code>dataLayer</code>.</p>
+
+      <h3>Captured UTM Parameters</h3>
+      <div id="utm-table"></div>
+
+      <h3>Decorated Outbound URL</h3>
+      <div id="outbound-url" class="url-box"></div>
+
+      <p style="margin-top: 1rem;">
+        <a id="shop-link" class="cta shopify" href="#checkout">Shop Now</a>
+      </p>
+    </section>
+
+    <!-- Shopify checkout -->
+    <section id="shopify" class="panel hidden">
+      <h2>shop.celltheory.com <span class="domain">— Shopify checkout</span></h2>
+      <p>The checkout reconstructs the UTM parameters from the URL (and the root-domain cookie in production).</p>
+
+      <h3>UTM Attribution Received</h3>
+      <div id="shopify-utm-table"></div>
+
+      <h3>Cookie Debug</h3>
+      <div id="cookie-debug" class="url-box"></div>
+
+      <p style="margin-top: 1rem;">
+        <a id="subscription-link" class="cta seal" href="#subscription">Subscribe & Save</a>
+      </p>
+    </section>
+
+    <!-- Seal Subscriptions checkout -->
+    <section id="seal" class="panel hidden">
+      <h2>Seal Subscriptions <span class="domain">— Subscription checkout</span></h2>
+      <p>Final step of the funnel. UTM attribution is preserved through the entire cross-domain flow.</p>
+
+      <h3>Final UTM Attribution</h3>
+      <div id="seal-utm-table"></div>
+
+      <div class="panel" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; margin-top: 1rem;">
+        <strong>Success:</strong> UTM parameters survived the full journey from Framer → Shopify → Seal Subscriptions.
+      </div>
+
+      <p style="margin-top: 1rem;">
+        <a class="cta" href="?">Restart Demo</a>
+      </p>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+
+      function readUrlParams() {
+        const params = new URLSearchParams(window.location.search);
+        const result = {};
+        UTM_KEYS.forEach((key) => { if (params.get(key)) result[key] = params.get(key); });
+        return result;
+      }
+
+      function saveToLocalStorage(params) {
+        Object.entries(params).forEach(([key, value]) => {
+          try { localStorage.setItem(key, value); } catch (e) {}
+        });
+      }
+
+      function pushToDataLayer(params) {
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({ event: 'utm_parameters_captured', ...params });
+      }
+
+      function buildUrl(base, params) {
+        const url = new URL(base, window.location.href);
+        Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+        return url.toString();
+      }
+
+      function renderTable(containerId, params) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        UTM_KEYS.forEach((key) => {
+          const value = params[key];
+          const row = document.createElement('div');
+          row.className = 'utm-row';
+          row.innerHTML = `<span>${key}</span><span class="badge ${value ? 'ok' : 'missing'}">${value || 'missing'}</span>`;
+          container.appendChild(row);
+        });
+      }
+
+      function updateFlow(step) {
+        document.querySelectorAll('.flow-step').forEach((el) => el.classList.remove('active'));
+        document.getElementById('step-' + step).classList.add('active');
+      }
+
+      const params = readUrlParams();
+      if (Object.keys(params).length > 0) {
+        saveToLocalStorage(params);
+        pushToDataLayer(params);
+      }
+
+      // Framer page rendering.
+      renderTable('utm-table', params);
+      const outboundUrl = buildUrl('#checkout', params);
+      document.getElementById('outbound-url').textContent = outboundUrl;
+      document.getElementById('shop-link').href = outboundUrl;
+
+      // Hash-based routing for the simulated cross-domain flow.
+      function route() {
+        const hash = window.location.hash || '#framer';
+        document.getElementById('framer').classList.add('hidden');
+        document.getElementById('shopify').classList.add('hidden');
+        document.getElementById('seal').classList.add('hidden');
+
+        if (hash.startsWith('#checkout')) {
+          document.getElementById('shopify').classList.remove('hidden');
+          renderTable('shopify-utm-table', readUrlParams());
+          document.getElementById('cookie-debug').textContent = document.cookie || '(no cookies)';
+          document.getElementById('subscription-link').href = buildUrl('#subscription', readUrlParams());
+          updateFlow('shopify');
+        } else if (hash.startsWith('#subscription')) {
+          document.getElementById('seal').classList.remove('hidden');
+          renderTable('seal-utm-table', readUrlParams());
+          updateFlow('seal');
+        } else {
+          document.getElementById('framer').classList.remove('hidden');
+          updateFlow('framer');
+        }
+      }
+
+      window.addEventListener('hashchange', route);
+      route();
+    })();
+  </script>
+</body>
+</html>
