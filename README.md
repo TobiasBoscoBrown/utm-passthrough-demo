@@ -10,6 +10,27 @@ This is a working proof-of-concept that demonstrates how to preserve UTM attribu
 
 When visitors land on a Framer page with UTM parameters (e.g. from a Google Ads campaign), those parameters are often lost during the transition to the Shopify checkout. This breaks attribution in Google Analytics and ad-platform conversion tracking.
 
+## Job Expectations — How This Demo Satisfies Each One
+
+| # | Client Expectation | How this demo delivers |
+|---|---|---|
+| 1 | **Analyze the existing setup** with Framer at `celltheory.com` and Shopify checkout at `shop.celltheory.com`. | I scraped the live `celltheory.com` Framer site and its `/my-store/` product page, found the existing UTM handler, and documented its specific flaws (see below). |
+| 2 | **Implement a reliable solution** to preserve UTM parameters during the domain transition. | `utm-preserver.js` uses three redundant mechanisms: URL decoration on outbound links, a root-domain `.celltheory.com` cookie, and `localStorage`. |
+| 3 | **Ensure the solution works with the existing GTM** installed on both domains. | The library pushes a `utm_parameters_captured` event to `window.dataLayer` with all UTM values, so existing GTM tags can fire immediately. |
+| 4 | **Address the Seal Subscriptions component** that handles the subscription checkout flow. | The subscription checkout step reconstructs UTM parameters from the decorated URL and the shared root-domain cookie, preserving attribution for subscription conversions. |
+| 5 | **Provide documentation or guidance** on the implemented fix. | This README and the live demo page explain the problem, the implementation, and the exact steps to apply it to the real site. |
+
+## What I Found on the Live Site
+
+The current `celltheory.com` page already contains a UTM script that:
+
+- Only decorates links matching `shop.celltheory.com` or `celltheory.com/cart`.
+- Stores values in `sessionStorage`, which is **not** shared across domains.
+- Does not push captured UTMs to the GTM `dataLayer`.
+- Uses a `setInterval(..., 500)` loop to rewrite links continuously.
+
+The real CTAs point to `/my-store/cell-theory-triple-action-nad-multicellular-longevity-supplement` (same-domain Framer path), and the product page hydration data includes a **Seal Subscriptions** selling plan. My solution fixes the selector mismatch, replaces `sessionStorage` with a cross-domain root-domain cookie, and adds GTM integration.
+
 ## The Solution
 
 `utm-preserver.js` runs on every page and does three things:

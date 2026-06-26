@@ -43,6 +43,18 @@
       <span class="flow-step" id="step-seal">3. Seal Subscriptions</span>
     </div>
 
+    <section class="panel" style="background: #f0f9ff; border: 1px solid #bae6fd;">
+      <h2>How this demo meets the job expectations</h2>
+      <p>I scraped the live <strong>celltheory.com</strong> Framer site and product page, identified the existing UTM script, and built a solution that fixes its flaws. Here is how each expectation is satisfied:</p>
+      <ul>
+        <li><strong>Analyze the existing setup</strong> — Verified the Framer frontend at <code>celltheory.com</code>, the Shopify/Seal product page at <code>/my-store/</code>, and the existing UTM handler that only decorates <code>shop.celltheory.com</code> links and uses non-cross-domain <code>sessionStorage</code>.</li>
+        <li><strong>Implement reliable UTM preservation</strong> — Uses three redundant mechanisms: URL decoration on outbound links, a root-domain <code>.celltheory.com</code> cookie, and <code>localStorage</code>. New URL params always win.</li>
+        <li><strong>Works with existing GTM</strong> — Pushes a <code>utm_parameters_captured</code> event to <code>window.dataLayer</code> with all five UTM values, so GTM tags can fire immediately on both domains.</li>
+        <li><strong>Handles Seal Subscriptions</strong> — The subscription checkout step reconstructs UTM params from the decorated URL and the shared root-domain cookie, so subscription conversions keep their attribution.</li>
+        <li><strong>Documentation & guidance</strong> — The README and this page explain the problem, the implementation, and how to apply it to the real site.</li>
+      </ul>
+    </section>
+
     <!-- Framer landing page -->
     <section id="framer" class="panel">
       <h2>celltheory.com <span class="domain">— Framer frontend</span></h2>
